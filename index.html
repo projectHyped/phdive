@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>필리핀 다이빙샵 지도</title>
+    <!-- PapaParse CDN 추가 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <!-- 기존 스타일 -->
+    <style>
+        body {
+            font-family: 'Noto Sans KR', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        header {
+            background-color: #00458f;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background-color: #f5f5f5;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filters {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .filters h3 {
+            margin-top: 0;
+        }
+        
+        .filter-group {
+            margin-bottom: 10px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        select, input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .shop-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .shop-card {
+            background-color: white;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .shop-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .shop-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .shop-region {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .shop-rating {
+            color: #f39c12;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .shop-contact {
+            font-size: 14px;
+            color: #555;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .shop-details {
+            display: none;
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 350px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            padding: 20px;
+            z-index: 1000;
+        }
+        
+        .detail-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        
+        .detail-header {
+            margin-bottom: 15px;
+        }
+        
+        .detail-name {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .detail-contact {
+            margin-bottom: 15px;
+        }
+        
+        .detail-website {
+            color: #00458f;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 5px;
+        }
+        
+        .detail-website:hover {
+            text-decoration: underline;
+        }
+        
+        .star-rating {
+            color: #f39c12;
+        }
+        
+        .korean-support {
+            background-color: #e74c3c;
+            color: white;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255,255,255,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">필리핀 다이빙 맵</div>
+        <div>한국인을 위한 필리핀 다이빙샵 정보</div>
+    </header>
+    
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="filters">
+                <select id="region-filter">
+                    <option value="all">모든 지역</option>
+                </select>
+                <select id="korean-filter">
+                    <option value="all">한국어 지원 여부</option>
+                    <option value="yes">지원</option>
+                    <option value="no">미지원</option>
+                </select>
+                <select id="rating-filter">
+                    <option value="0">모든 평점</option>
+                    <option value="4">4점 이상</option>
+                    <option value="4.5">4.5점 이상</option>
+                </select>
+                <input type="text" id="search" placeholder="검색...">
+            </div>
+            <div id="shop-list"></div>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="shop-details" id="shop-details">
+                <div class="detail-close" onclick="closeDetails()">✕</div>
+                <div class="detail-header">
+                    <div class="detail-name" id="detail-name"></div>
+                    <div class="detail-region" id="detail-region"></div>
+                    <div class="star-rating" id="detail-rating"></div>
+                </div>
+                <div class="detail-contact">
+                    <div id="detail-address"></div>
+                    <div id="detail-phone"></div>
+                    <a href="#" class="detail-website" id="detail-website" target="_blank">웹사이트 방문</a>
+                </div>
+                <div class="detail-services">
+                    <h4>제공 서비스</h4>
+                    <div id="detail-services">정보 수집 중...</div>
+                </div>
+            </div>
+            <div class="loading" id="loading" style="display: none;">데이터 로딩 중...</div>
+        </div>
+    </div>
+
+    <!-- 스크립트 순서 변경 -->
+    <script src="scripts/main.js"></script>
+    <script 
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDCkyborGF0oDszFPDIfEeXm9prdtybO-g&callback=initMap">
+    </script>
+</body>
+</html>
